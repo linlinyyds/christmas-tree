@@ -194,13 +194,39 @@
                 this.isMainStar = isMainStar;
                 this.twinkle = Math.random() * Math.PI * 2;
                 this.twinkleSpeed = Math.random() * 0.03 + 0.01;
+                this.rotation = 0;
+                this.rotationSpeed = isMainStar ? 0.03 : 0; // 只有主星星旋转
             }
 
             update() {
                 this.twinkle += this.twinkleSpeed;
+                if (this.isMainStar) {
+                    this.rotation += this.rotationSpeed; // Y轴旋转
+                }
             }
 
-            // 绘制五角星路径
+            // 3D变换：绕Y轴旋转
+            transform3D(x, y, rotationY) {
+                const cosRot = Math.cos(rotationY);
+                const sinRot = Math.sin(rotationY);
+
+                // Y轴旋转
+                const x3d = x * cosRot;
+                const z3d = x * sinRot;
+
+                // 透视投影
+                const perspective = 300;
+                const scale = perspective / (perspective + z3d);
+
+                return {
+                    x: x3d * scale,
+                    y: y,
+                    z: z3d,
+                    scale: scale
+                };
+            }
+
+            // 绘制五角星路径（2D）
             drawStarPath(cx, cy, outerRadius, innerRadius) {
                 const points = 5;
                 ctx.beginPath();
@@ -217,6 +243,38 @@
                     }
                 }
                 ctx.closePath();
+            }
+
+            // 绘制3D五角星路径（带Y轴旋转）
+            draw3DStarPath(outerRadius, innerRadius, rotationY) {
+                const points = 5;
+                const vertices = [];
+
+                // 计算所有顶点
+                for (let i = 0; i < points * 2; i++) {
+                    const angle = (Math.PI * 2 * i) / (points * 2) - Math.PI / 2;
+                    const radius = i % 2 === 0 ? outerRadius : innerRadius;
+                    const x = Math.cos(angle) * radius;
+                    const y = Math.sin(angle) * radius;
+
+                    const transformed = this.transform3D(x, y, rotationY);
+                    vertices.push(transformed);
+                }
+
+                // 绘制路径
+                ctx.beginPath();
+                vertices.forEach((v, i) => {
+                    if (i === 0) {
+                        ctx.moveTo(v.x, v.y);
+                    } else {
+                        ctx.lineTo(v.x, v.y);
+                    }
+                });
+                ctx.closePath();
+
+                // 返回平均深度用于判断前后
+                const avgZ = vertices.reduce((sum, v) => sum + v.z, 0) / vertices.length;
+                return avgZ;
             }
 
             draw() {
@@ -249,17 +307,20 @@
                     ctx.arc(this.x, this.y, this.size * 2, 0, Math.PI * 2);
                     ctx.fill();
 
-                    // 五角星主体
+                    // 3D旋转的五角星主体
+                    ctx.save();
+                    ctx.translate(this.x, this.y);
                     ctx.globalAlpha = opacity;
                     ctx.shadowBlur = 20;
                     ctx.shadowColor = 'rgba(255, 255, 200, 0.8)';
-                    const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, outerRadius);
+                    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, outerRadius);
                     gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
                     gradient.addColorStop(0.5, 'rgba(255, 255, 220, 1)');
                     gradient.addColorStop(1, 'rgba(255, 255, 150, 1)');
                     ctx.fillStyle = gradient;
-                    this.drawStarPath(this.x, this.y, outerRadius, innerRadius);
+                    this.draw3DStarPath(outerRadius, innerRadius, this.rotation);
                     ctx.fill();
+                    ctx.restore();
                 } else {
                     // 背景小星星
                     ctx.globalAlpha = opacity * 0.5;
