@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>梦幻圣诞树</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: 'Brush Script MT', cursive, Arial, sans-serif;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .text {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-size: 48px;
+            font-style: italic;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+            animation: textGlow 2s ease-in-out infinite;
+            z-index: 10;
+        }
+
+        @keyframes textGlow {
+            0%, 100% {
+                text-shadow: 0 0 20px rgba(255, 255, 255, 0.8),
+                             0 0 40px rgba(135, 206, 250, 0.6);
+            }
+            50% {
+                text-shadow: 0 0 30px rgba(255, 255, 255, 1),
+                             0 0 60px rgba(135, 206, 250, 0.8);
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div class="text">Merry Christmas</div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // 粒子类 - 增加漂浮效果
+        class Particle {
+            constructor(x, y, color, size, speedX = 0, speedY = 0, floatEnabled = true) {
+                this.baseX = x;
+                this.baseY = y;
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.baseSize = size;
+                this.size = size;
+                this.speedX = speedX;
+                this.speedY = speedY;
+                this.opacity = Math.random() * 0.5 + 0.5;
+                this.twinkleSpeed = Math.random() * 0.02 + 0.01;
+                this.twinklePhase = Math.random() * Math.PI * 2;
+
+                // 漂浮效果参数
+                this.floatEnabled = floatEnabled;
+                this.floatAmplitudeX = Math.random() * 3 + 1;
+                this.floatAmplitudeY = Math.random() * 2 + 0.5;
+                this.floatSpeedX = Math.random() * 0.02 + 0.01;
+                this.floatSpeedY = Math.random() * 0.015 + 0.01;
+                this.floatPhaseX = Math.random() * Math.PI * 2;
+                this.floatPhaseY = Math.random() * Math.PI * 2;
+            }
+
+            update() {
+                if (this.floatEnabled) {
+                    // 更新漂浮相位
+                    this.floatPhaseX += this.floatSpeedX;
+                    this.floatPhaseY += this.floatSpeedY;
+
+                    // 计算漂浮偏移
+                    this.x = this.baseX + Math.sin(this.floatPhaseX) * this.floatAmplitudeX;
+                    this.y = this.baseY + Math.sin(this.floatPhaseY) * this.floatAmplitudeY;
+                } else {
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+                }
+
+                this.twinklePhase += this.twinkleSpeed;
+                this.opacity = 0.3 + Math.abs(Math.sin(this.twinklePhase)) * 0.7;
+                this.size = this.baseSize * (0.8 + Math.abs(Math.sin(this.twinklePhase)) * 0.4);
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.opacity;
+
+                // 发光效果
+                const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size * 2);
+                gradient.addColorStop(0, this.color);
+                gradient.addColorStop(0.5, this.color.replace('1)', '0.5)'));
+                gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size * 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 核心亮点
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        // 上升的魔法粒子
+        class RisingParticle {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                const angle = Math.random() * Math.PI * 2;
+                const radius = Math.random() * (treeHeight * 0.6);
+                const progress = Math.random();
+
+                this.x = centerX + Math.cos(angle) * radius * progress;
+                this.y = treeBottom - Math.random() * 50;
+                this.speedY = -(Math.random() * 1.5 + 0.5);
+                this.speedX = (Math.random() - 0.5) * 0.5;
+                this.size = Math.random() * 3 + 1;
+                this.opacity = Math.random() * 0.5 + 0.3;
+                this.life = 1;
+                this.fadeSpeed = Math.random() * 0.005 + 0.003;
+
+                const colors = [
+                    'rgba(255, 215, 0, 1)',
+                    'rgba(255, 255, 255, 1)',
+                    'rgba(135, 206, 250, 1)',
+                    'rgba(255, 182, 193, 1)',
+                ];
+                this.color = colors[Math.floor(Math.random() * colors.length)];
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.life -= this.fadeSpeed;
+
+                if (this.life <= 0 || this.y < treeTop - 100) {
+                    this.reset();
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.opacity * this.life;
+
+                const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size * 2);
+                gradient.addColorStop(0, this.color);
+                gradient.addColorStop(0.5, this.color.replace('1)', '0.5)'));
+                gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size * 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        // 星星效果
+        class Star {
+            constructor(x, y, size, color, isMainStar = false) {
+                this.x = x;
+                this.y = y;
+                this.size = size;
+                this.color = color;
+                this.isMainStar = isMainStar;
+                this.twinkle = Math.random() * Math.PI * 2;
+                this.twinkleSpeed = Math.random() * 0.03 + 0.01;
+            }
+
+            update() {
+                this.twinkle += this.twinkleSpeed;
+            }
+
+            // 绘制五角星路径
+            drawStarPath(cx, cy, outerRadius, innerRadius) {
+                const points = 5;
+                ctx.beginPath();
+                for (let i = 0; i < points * 2; i++) {
+                    const angle = (Math.PI * 2 * i) / (points * 2) - Math.PI / 2;
+                    const radius = i % 2 === 0 ? outerRadius : innerRadius;
+                    const x = cx + Math.cos(angle) * radius;
+                    const y = cy + Math.sin(angle) * radius;
+
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                ctx.closePath();
+            }
+
+            draw() {
+                ctx.save();
+
+                const opacity = 0.7 + Math.abs(Math.sin(this.twinkle)) * 0.3;
+                const outerRadius = this.size;
+                const innerRadius = this.size * 0.38;
+
+                if (this.isMainStar) {
+                    // 主星星 - 大光晕
+                    ctx.globalAlpha = opacity * 0.3;
+                    const outerGlow = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size * 4);
+                    outerGlow.addColorStop(0, 'rgba(255, 255, 200, 0.8)');
+                    outerGlow.addColorStop(0.5, 'rgba(255, 255, 150, 0.4)');
+                    outerGlow.addColorStop(1, 'rgba(255, 255, 0, 0)');
+                    ctx.fillStyle = outerGlow;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size * 4, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // 中层光晕
+                    ctx.globalAlpha = opacity * 0.6;
+                    const midGlow = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size * 2);
+                    midGlow.addColorStop(0, 'rgba(255, 255, 220, 1)');
+                    midGlow.addColorStop(0.5, 'rgba(255, 255, 180, 0.6)');
+                    midGlow.addColorStop(1, 'rgba(255, 255, 100, 0)');
+                    ctx.fillStyle = midGlow;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size * 2, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // 五角星主体
+                    ctx.globalAlpha = opacity;
+                    ctx.shadowBlur = 20;
+                    ctx.shadowColor = 'rgba(255, 255, 200, 0.8)';
+                    const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, outerRadius);
+                    gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+                    gradient.addColorStop(0.5, 'rgba(255, 255, 220, 1)');
+                    gradient.addColorStop(1, 'rgba(255, 255, 150, 1)');
+                    ctx.fillStyle = gradient;
+                    this.drawStarPath(this.x, this.y, outerRadius, innerRadius);
+                    ctx.fill();
+                } else {
+                    // 背景小星星
+                    ctx.globalAlpha = opacity * 0.5;
+                    const glow = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size * 3);
+                    glow.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+                    glow.addColorStop(0.5, 'rgba(255, 255, 255, 0.4)');
+                    glow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                    ctx.fillStyle = glow;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size * 3, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // 五角星主体
+                    ctx.globalAlpha = opacity;
+                    ctx.fillStyle = 'rgba(255, 255, 255, 1)';
+                    this.drawStarPath(this.x, this.y, outerRadius, innerRadius);
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            }
+        }
+
+        const particles = [];
+        const stars = [];
+        const spiralRibbons = []; // 改为数组存储多个螺旋
+        const risingParticles = [];
+
+        // 圣诞树参数（动态计算以确保居中）
+        let centerX = canvas.width / 2;
+        let treeTop = canvas.height * 0.15;
+        let treeBottom = canvas.height * 0.75;
+        let treeHeight = treeBottom - treeTop;
+
+        // 创建圣诞树粒子
+        function createTreeParticles() {
+            // 大幅减少粒子数量，只保留80个粒子
+            for (let i = 0; i < 80; i++) {
+                const progress = i / 80;
+
+                const y = treeTop + treeHeight * progress;
+                const maxWidth = (treeHeight * progress * 0.6);
+                const x = centerX + (Math.random() - 0.5) * maxWidth;
+
+                const colors = [
+                    'rgba(135, 206, 250, 1)', // 天蓝色
+                    'rgba(100, 149, 237, 1)', // 矢车菊蓝
+                    'rgba(70, 130, 180, 1)',  // 钢青色
+                    'rgba(176, 224, 230, 1)', // 粉蓝色
+                ];
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                const size = Math.random() * 2 + 1;
+
+                particles.push(new Particle(x, y, color, size));
+            }
+
+            // 添加少量金色高光粒子
+            for (let i = 0; i < 40; i++) {
+                const progress = i / 40;
+
+                const y = treeTop + treeHeight * progress;
+                const maxWidth = (treeHeight * progress * 0.6);
+                const x = centerX + (Math.random() - 0.5) * maxWidth;
+
+                const colors = [
+                    'rgba(255, 215, 0, 1)',   // 金色
+                    'rgba(255, 255, 224, 1)', // 浅黄色
+                    'rgba(255, 250, 205, 1)', // 柠檬绸色
+                ];
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                const size = Math.random() * 2.5 + 0.8;
+
+                particles.push(new Particle(x, y, color, size));
+            }
+        }
+
+        // 螺旋光带类
+        class SpiralRibbon {
+            constructor(spiralCount, rotationSpeed, direction, colorScheme, startOffset = 0) {
+                this.spiralCount = spiralCount; // 螺旋圈数
+                this.rotationSpeed = rotationSpeed; // 旋转速度
+                this.direction = direction; // 1 顺时针, -1 逆时针
+                this.colorScheme = colorScheme; // 颜色方案
+                this.rotation = startOffset; // 当前旋转角度
+                this.particles = [];
+
+                this.createParticles();
+            }
+
+            createParticles() {
+                const particlesPerSpiral = 50; // 大幅减少粒子密度
+
+                for (let i = 0; i < particlesPerSpiral; i++) {
+                    const progress = i / particlesPerSpiral;
+                    const baseAngle = progress * Math.PI * 2 * this.spiralCount;
+                    const y = treeTop + treeHeight * progress;
+                    const radius = (treeHeight * progress * 0.35);
+
+                    // 根据颜色方案选择颜色
+                    let color;
+                    if (this.colorScheme === 'blue') {
+                        color = `rgba(${100 + Math.random() * 155}, ${200 + Math.random() * 55}, 255, 1)`;
+                    } else if (this.colorScheme === 'gold') {
+                        color = `rgba(255, ${200 + Math.random() * 55}, ${100 + Math.random() * 100}, 1)`;
+                    } else if (this.colorScheme === 'pink') {
+                        color = `rgba(255, ${150 + Math.random() * 105}, ${200 + Math.random() * 55}, 1)`;
+                    } else if (this.colorScheme === 'cyan') {
+                        color = `rgba(${100 + Math.random() * 100}, ${220 + Math.random() * 35}, 255, 1)`;
+                    }
+
+                    this.particles.push({
+                        progress: progress,
+                        baseAngle: baseAngle,
+                        y: y,
+                        radius: radius,
+                        color: color,
+                        baseSize: Math.random() * 3 + 2,
+                        size: 0,
+                        x: 0,
+                        twinkleSpeed: Math.random() * 0.02 + 0.01,
+                        twinklePhase: Math.random() * Math.PI * 2,
+                        opacity: Math.random() * 0.5 + 0.5
+                    });
+                }
+            }
+
+            update() {
+                this.rotation += this.rotationSpeed * this.direction;
+
+                this.particles.forEach(p => {
+                    const currentAngle = p.baseAngle + this.rotation;
+                    p.x = centerX + Math.cos(currentAngle) * p.radius;
+
+                    p.twinklePhase += p.twinkleSpeed;
+                    p.opacity = 0.4 + Math.abs(Math.sin(p.twinklePhase)) * 0.6;
+                    p.size = p.baseSize * (0.9 + Math.abs(Math.sin(p.twinklePhase)) * 0.3);
+                });
+            }
+
+            draw() {
+                this.particles.forEach(p => {
+                    ctx.save();
+                    ctx.globalAlpha = p.opacity;
+
+                    const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 2.5);
+                    gradient.addColorStop(0, p.color);
+                    gradient.addColorStop(0.5, p.color.replace('1)', '0.6)'));
+                    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size * 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // 核心
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size * 0.6, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.restore();
+                });
+            }
+        }
+
+        // 创建多个螺旋光带
+        function createSpiralRibbons() {
+            // 螺旋1：蓝色，4圈，顺时针，快速
+            spiralRibbons.push(new SpiralRibbon(4, 0.015, 1, 'blue', 0));
+
+            // 螺旋2：金色，3圈，逆时针，中速
+            spiralRibbons.push(new SpiralRibbon(3, 0.012, -1, 'gold', Math.PI / 3));
+
+            // 螺旋3：青色，5圈，顺时针，慢速
+            spiralRibbons.push(new SpiralRibbon(5, 0.01, 1, 'cyan', Math.PI * 2 / 3));
+
+            // 螺旋4：粉色，3.5圈，逆时针，快速
+            spiralRibbons.push(new SpiralRibbon(3.5, 0.013, -1, 'pink', Math.PI));
+        }
+
+        // 创建星星效果
+        function createStars() {
+            // 顶部大星星
+            stars.push(new Star(centerX, treeTop - 40, 15, 'rgba(255, 255, 255, 1)', true));
+
+            // 随机星星（小尺寸）
+            for (let i = 0; i < 40; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                const size = Math.random() * 2 + 1; // 1-3
+                const colors = [
+                    'rgba(255, 255, 255, 1)',
+                    'rgba(200, 220, 255, 1)',
+                    'rgba(255, 240, 200, 1)',
+                ];
+                const color = colors[Math.floor(Math.random() * colors.length)];
+
+                stars.push(new Star(x, y, size, color, false));
+            }
+        }
+
+        // 初始化函数
+        function init() {
+            // 更新圣诞树参数以适应新的画布大小
+            centerX = canvas.width / 2;
+            treeTop = canvas.height * 0.15;
+            treeBottom = canvas.height * 0.75;
+            treeHeight = treeBottom - treeTop;
+
+            // 清空所有数组
+            particles.length = 0;
+            stars.length = 0;
+            spiralRibbons.length = 0;
+            risingParticles.length = 0;
+
+            // 重新创建所有元素
+            createTreeParticles();
+            createSpiralRibbons();
+            createStars();
+
+            // 创建上升粒子（减少数量）
+            for (let i = 0; i < 25; i++) {
+                risingParticles.push(new RisingParticle());
+            }
+        }
+
+        // 初始化
+        init();
+
+        // 动画循环
+        function animate() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 绘制上升的魔法粒子（在树后面）
+            risingParticles.forEach(particle => {
+                particle.update();
+                particle.draw();
+            });
+
+            // 绘制树的粒子
+            particles.forEach(particle => {
+                particle.update();
+                particle.draw();
+            });
+
+            // 绘制多个螺旋光带（各自独立旋转）
+            spiralRibbons.forEach(ribbon => {
+                ribbon.update();
+                ribbon.draw();
+            });
+
+            // 绘制星星
+            stars.forEach(star => {
+                star.update();
+                star.draw();
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // 窗口大小调整
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            // 重新初始化以确保居中
+            init();
+        });
+    </script>
+</body>
+</html>
